@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  daily-frontend:
+    build: 
+      context: ./frontend
+      dockerfile: ../Dockerfile
+    container_name: daily-practice-frontend
+    ports:
+      - "3010:80"
+    restart: always
+    volumes:
+      - ./admin_tool.html:/usr/share/nginx/html/admin_tool.html
+    networks:
+      - daily-network
+
+  daily-backend:
+    build: ./backend
+    container_name: daily-practice-backend
+    environment:
+      - PORT=3005
+      - ADMIN_KEY=antigravity_admin_2026
+    ports:
+      - "3011:3005"
+    volumes:
+      - ./backend/data:/app/data
+      - ../wiki:/wiki
+    restart: always
+    networks:
+      - daily-network
+
+networks:
+  daily-network:
+    driver: bridge
