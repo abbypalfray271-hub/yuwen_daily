@@ -132,13 +132,204 @@ body::before {
 }
 
 #tab-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- Swiper Layout --- */
+.swiper-wrapper {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+/* 导航按钮 */
+.nav-btn {
+  position: absolute;
+  top: 45%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  background: rgba(13, 27, 42, 0.7);
+  border: 1px solid var(--accent-border);
+  color: var(--accent-pyro);
+  font-size: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  z-index: 100;
+  border-radius: 4px;
+  backdrop-filter: blur(10px);
+  transition: 0.3s;
+  user-select: none;
+  box-shadow: 0 0 15px rgba(0,0,0,0.5);
+}
+
+.nav-btn:hover {
+  background: var(--accent-pyro);
+  color: #fff;
+  box-shadow: 0 0 20px var(--accent-pyro);
+}
+
+.nav-btn:active { transform: translateY(-50%) scale(0.9); }
+
+.nav-btn.prev { left: 0; }
+.nav-btn.next { right: 0; }
+
+.card-swiper {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  width: 100%;
+  padding-bottom: 20px;
+  -webkit-overflow-scrolling: touch;
+  align-items: flex-start; /* 允许不同高度的卡片顶部对齐 */
+  scroll-padding: 0 1.5rem; /* 核心修复：让滚动对齐自动预留边距 */
+}
+
+.card-swiper::-webkit-scrollbar {
+  display: none;
+}
+
+.card-item {
+  flex: 0 0 100%;
+  width: 100%;
+  max-width: 100%; /* 核心修复：防止卡片宽度超出视口 */
+  scroll-snap-align: center;
+  padding: 0 1.5rem; /* 保持间距，但配合 scroll-padding 使用 */
+  box-sizing: border-box;
+  overflow-x: hidden; /* 防止内部内容溢出 */
+}
+
+/* 翻转卡片核心样式 */
+.flip-container {
+  perspective: 2000px;
+}
+
+.card-inner {
+  position: relative;
+  width: 100%;
+  display: grid; /* 使用 Grid 让正反面共同撑起高度 */
+  grid-template-columns: 1fr;
+  transform-style: preserve-3d;
+  transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-inner.flipped {
+  transform: rotateY(180deg);
+}
+
+.card-front, .card-back {
+  grid-area: 1 / 1 / 2 / 2; /* 叠加在同一个网格单元格 */
+  width: 100%;
+  min-height: 280px; /* 设定最小高度保证美观 */
+  max-height: 75vh; /* 设定最大高度防止溢出 */
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-back {
+  transform: rotateY(180deg);
+  background: linear-gradient(135deg, #1a1c2c 0%, #0d0e17 100%) !important;
+  border: 1px solid var(--accent) !important;
+  box-shadow: 0 0 30px rgba(255, 193, 7, 0.15) !important;
+}
+
+.card-content-inner {
   background: var(--card-bg);
   border: 1px solid var(--border);
-  padding: 40px;
+  padding: 30px 25px;
   border-radius: 4px;
   backdrop-filter: var(--glass-blur);
-  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+  border-top: 2px solid var(--accent-border);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: border-color 0.3s, box-shadow 0.3s;
+  word-break: break-all; /* 核心修复：强制长字符（如下划线）换行 */
+  overflow-wrap: break-word;
+}
+
+.card-content-inner:hover {
+  border-color: var(--accent-pyro);
+  box-shadow: 0 15px 50px rgba(255, 95, 46, 0.15);
+}
+
+.card-scroll-area {
   flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.card-scroll-area::-webkit-scrollbar {
+  width: 4px;
+}
+
+.card-scroll-area::-webkit-scrollbar-thumb {
+  background: var(--accent-soft);
+  border-radius: 2px;
+}
+
+/* 卡片装饰：四角菱形 */
+.card-content-inner::after {
+  content: "✦";
+  position: absolute;
+  bottom: 10px;
+  right: 15px;
+  color: var(--accent-pyro);
+  opacity: 0.5;
+  font-size: 18px;
+}
+
+/* 指示器 */
+.swiper-dots {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin: 20px 0;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  transform: rotate(45deg);
+  transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  cursor: pointer;
+}
+
+.dot.active {
+  background: var(--accent-pyro);
+  box-shadow: 0 0 12px var(--accent-pyro);
+  transform: rotate(45deg) scale(1.6);
+}
+
+/* 翻转提示文字 */
+.flip-hint {
+  margin-top: 1.5rem;
+  padding: 10px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--accent-pyro);
+  letter-spacing: 2px;
+  font-weight: bold;
+  text-transform: uppercase;
+  border-top: 1px dashed rgba(255, 95, 46, 0.2);
+  animation: pulse-hint 2s infinite ease-in-out;
+}
+
+@keyframes pulse-hint {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.02); text-shadow: 0 0 8px var(--accent-pyro); }
 }
 
 /* 课程卡片列表 */
@@ -191,22 +382,47 @@ body::before {
   font-weight: bold;
 }
 
-/* 阅读容器优化 */
-.reading-container p {
-  margin-bottom: 2rem;
-  text-indent: 2.3em;
-  line-height: 2.1;
-  color: #fff;
+/* 内容排版优化 */
+.card-content-inner p {
+  margin-bottom: 1.8rem;
+  text-indent: 2em;
+  line-height: 2;
+  color: var(--text-main);
   text-align: justify;
-  text-align-last: left;
+}
+
+.card-content-inner h2 {
+  font-family: var(--font-serif);
+  color: var(--accent-pyro);
+  margin-bottom: 1.5rem;
+  font-size: 1.4rem;
+  border-bottom: 1px solid var(--accent-soft);
+  padding-bottom: 8px;
 }
 
 .important-block {
-  background: rgba(255, 255, 255, 0.05);
-  border-left: 5px solid var(--accent);
-  padding: 35px;
-  margin: 4.5rem 0;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  background: rgba(255, 193, 7, 0.04);
+  border-left: 4px solid var(--accent);
+  padding: 25px;
+  margin: 1rem 0 2rem 0;
+  border-radius: 0 4px 4px 0;
+}
+
+.important-header {
+  color: var(--accent);
+  font-weight: bold;
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.badge-gold {
+  background: var(--accent);
+  color: #000;
+  padding: 2px 8px;
+  border-radius: 2px;
+  font-size: 12px;
 }
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
