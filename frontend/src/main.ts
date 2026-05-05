@@ -55,7 +55,7 @@ const Header = () => `
     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
       <div>
         <h1 style="text-transform: uppercase; letter-spacing: 2px;">Chinese Daily Practice</h1>
-        <p style="font-size: 14px; color: var(--text-dim);">语文每日练 · 初中篇 v2.0</p>
+        <p style="font-size: 14px; color: var(--text-dim);">语文每日练 · 初中篇 v2.1.0</p>
       </div>
       <div style="font-size: 10px; color: var(--accent-pyro); border: 1px solid rgba(255, 95, 46, 0.3); padding: 2px 8px; border-radius: 2px;">TEYVAT EDITION</div>
     </div>
