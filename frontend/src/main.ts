@@ -165,7 +165,7 @@ const Header = () => `
   <div class="app-header fade-in">
     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
       <div>
-        <h1 style="letter-spacing: 1px; font-size: 24px; font-weight: 800; background: linear-gradient(to right, #fff, var(--text-dim)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">语文每日练 · 初中篇 v2.9.0</h1>
+        <h1 style="letter-spacing: 1px; font-size: 24px; font-weight: 800; background: linear-gradient(to right, #fff, var(--text-dim)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">语文每日练 · 初中篇 v3.2.0</h1>
       </div>
       <div style="display: flex; align-items: center; gap: 10px;">
         <button onclick="window.toggleAdmin()" class="btn-teyvat-small ${isAdmin() ? 'active' : ''}">
