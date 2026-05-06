@@ -404,6 +404,11 @@ body::before {
 }
 
 /* 课程卡片列表 */
+.course-list {
+  padding-bottom: 120px; /* 核心修复：为移动端预留足够的滑动缓冲空间，防止回弹 */
+  width: 100%;
+}
+
 .course-card {
   background: var(--card-bg);
   border: 1px solid var(--border);

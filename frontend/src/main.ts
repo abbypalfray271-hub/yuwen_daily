@@ -60,6 +60,14 @@ const renderMarkdown = (md: string, backContent?: string, sectionPrefix: string 
     `;
   });
   
+  // 核心增强补丁：强制吞噬后续所有内容直到新标题，实现真正的“知识归位”
+  enhancedHtml = enhancedHtml.replace(/(<div class="important-block fade-in">[\s\S]+?<div class="important-body">)([\s\S]+?)(<\/div>\s*<\/div>)\s*([\s\S]+?)(?=<div class="important-block"|<h2|$)/g, (match, head, body, tail, extra) => {
+    // 对吸入的内容同样执行子步骤对齐转换
+    const convertedExtra = extra.replace(/<p>(?:\s*<strong[^>]*>)?(\(\)?\d+[\.、]?|[①-⑳])\s*([\s\S]*?)(?:\s*<\/strong>)?<\/p>/g, 
+      '<div class="sub-step"><span class="sub-num">$1</span><span class="sub-content">$2</span></div>');
+    return `${head}${body}${convertedExtra}${tail}`;
+  });
+  
   // 2. 核心增强：精准且鲁棒地识别答题区 (不限标签，支持嵌套)
   enhancedHtml = enhancedHtml.replace(/<[p|div][^>]*>(?:\s*<strong[^>]*>)?(答：|_{5,}|\[\s{4,}\])([\s\S]*?)(?:\s*<\/strong>)?\s*<\/[p|div]>/g, (match, p1, p2) => {
     return `<div class="answer-area">${p1}${p2}</div>`;
@@ -201,7 +209,7 @@ const Header = () => `
   <div class="app-header fade-in">
     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
       <div>
-        <h1 style="letter-spacing: 1px; font-size: 26px; font-weight: 800; background: linear-gradient(to right, #fff, var(--text-dim)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">语文每日练 · 初中篇 v2.5.0</h1>
+        <h1 style="letter-spacing: 1px; font-size: 26px; font-weight: 800; background: linear-gradient(to right, #fff, var(--text-dim)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">语文每日练 · 初中篇 v2.6.0</h1>
       </div>
     </div>
   </div>
@@ -242,7 +250,7 @@ const HomeView = async () => {
   `).join('');
 
   return `
-    <div style="flex: 1;" class="fade-in">
+    <div class="fade-in">
       <div style="margin-bottom: 40px;">
         <h2 style="font-size: 32px; margin-bottom: 12px; font-family: var(--font-serif);">成就卓越语文素养</h2>
         <p style="color: var(--text-dim); font-size: 15px;">已成功通过契约验证。今日建议学习进度：${days.length > 0 ? 'Day ' + days[0] : '无'}</p>
