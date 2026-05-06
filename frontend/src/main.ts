@@ -130,7 +130,28 @@ const renderMarkdown = (md: string, backContent?: string, sectionPrefix: string 
 
     if (isGuidanceCard && backContent) {
       const backHtml = (marked.parse(backContent) as string).replace(/<h[12].*?>.*?<\/h[12]>/g, '');
-      return `<div class="card-item flip-container" data-index="${index}"><div class="card-inner" id="card-inner-${index}"><div class="card-front card-content-inner" onclick="window.toggleFlip(${index})"><div class="card-scroll-area"><h2 style="color:var(--accent-pyro)">解析引导 / GUIDANCE</h2>${content.replace('<!--GUIDANCE-->', '')}${previewHtml}</div><div class="flip-hint"><span class="sparkle">✦</span> 点击揭晓最终答案 / REVEAL ANSWER</div></div><div class="card-back card-content-inner" onclick="window.toggleFlip(${index})"><div class="card-scroll-area"><h2 style="color:var(--accent)">参考解析 / ANALYSIS</h2>${backHtml}</div><div class="flip-hint" style="color:var(--text-dim); opacity:0.6;">← 点击返回引导 / CLICK TO BACK</div></div></div></div>`;
+      const isLockedForStudent = sectionPrefix === 'practice' && !isAdmin() && !getUpload(cardId);
+      const hintText = isLockedForStudent ? '<span class="sparkle">🔒</span> 需拍照上传后解锁解析 / UPLOAD PHOTO TO UNLOCK' : '<span class="sparkle">✦</span> 点击揭晓最终答案 / REVEAL ANSWER';
+      
+      return `<div class="card-item flip-container" data-index="${index}">
+        <div class="card-inner" id="card-inner-${index}" data-section="${sectionPrefix}" data-card-id="${cardId}">
+          <div class="card-front card-content-inner" onclick="window.toggleFlip(${index})">
+            <div class="card-scroll-area">
+              <h2 style="color:var(--accent-pyro)">解析引导 / GUIDANCE</h2>
+              ${content.replace('<!--GUIDANCE-->', '')}
+              ${previewHtml}
+            </div>
+            <div class="flip-hint">${hintText}</div>
+          </div>
+          <div class="card-back card-content-inner" onclick="window.toggleFlip(${index})">
+            <div class="card-scroll-area">
+              <h2 style="color:var(--accent)">参考解析 / ANALYSIS</h2>
+              ${backHtml}
+            </div>
+            <div class="flip-hint" style="color:var(--text-dim); opacity:0.6;">← 点击返回引导 / CLICK TO BACK</div>
+          </div>
+        </div>
+      </div>`;
     }
     return `<div class="card-item" data-index="${index}"><div class="card-content-inner"><div class="card-scroll-area">${content}${previewHtml}</div></div></div>`;
   }).join('');
@@ -373,7 +394,21 @@ const pushSync = async () => {
 };
 (window as any).toggleFlip = (index: number) => {
   const inner = document.getElementById(`card-inner-${index}`);
-  if (inner) inner.classList.toggle('flipped');
+  if (!inner) return;
+
+  const section = inner.dataset.section;
+  const cardId = inner.dataset.cardId;
+
+  // 核心逻辑：实战环节需拍照上传后解锁（管理员除外）
+  if (section === 'practice' && !isAdmin()) {
+    const hasUpload = getUpload(cardId || "");
+    if (!hasUpload) {
+      alert('✦ 考点实战：请先拍摄上传您的书面答案，以解锁参考解析。');
+      return;
+    }
+  }
+
+  inner.classList.toggle('flipped');
 };
 (window as any).navigateToDetail = (day: string) => {
   if (serverLockedDays.includes(day) && !isAdmin()) {
