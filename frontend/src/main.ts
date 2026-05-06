@@ -30,7 +30,12 @@ const fetchDayContent = async (day: string): Promise<Record<string, string>> => 
 
 // --- Custom Renderer ---
 const renderMarkdown = (md: string, backContent?: string) => {
-  let processedMd = md.replace(/([^\n])([①-⑳])/g, '$1\n\n$2');
+  // 预处理：将“答：”和随后的下划线强制合并，防止换行导致拆分失败
+  let processedMd = md.replace(/(答：)\n*\s*(_{5,})/g, '$1$2');
+  // 预处理：去掉编号周围的加粗并强制换行
+  processedMd = processedMd.replace(/\*\*(\d+[、.])(.*?)\*\*/g, '$1$2'); 
+  processedMd = processedMd.replace(/(\*\*【问】.*?\*\*)(\s*\d+[、.])/g, '$1\n\n$2');
+  processedMd = processedMd.replace(/([^\n])([①-⑳])/g, '$1\n\n$2');
   processedMd = processedMd.replace(/-{5,}/g, '\n---\n');
   let rawHtml = marked.parse(processedMd) as string;
 
@@ -45,29 +50,82 @@ const renderMarkdown = (md: string, backContent?: string) => {
       </div>
     `;
   });
+  
+  // 语义化增强：将包含“答：”或大量下划线的段落标记为答题区 (支持跨行)
+  enhancedHtml = enhancedHtml.replace(/<p>(?:<strong>)?(答：|_{5,})([\s\S]*?)(?:<\/strong>)?(?=<\/p>)/g, '<p class="answer-area">$1$2');
+  
+  // 交互增强：将下划线转换为可输入区域（物理转化为 span，防止点击翻转）
+  enhancedHtml = enhancedHtml.replace(/_{5,}/g, '<span class="editable-answer" contenteditable="true" spellcheck="false" onclick="event.stopPropagation()"></span>');
+
+  // 语义化增强：将“1、”，“2、”等引导步骤标记为列表式分析步骤 (支持跨行)
+  enhancedHtml = enhancedHtml.replace(/<p>(?:<strong>)?(\d+[、.])\s*([\s\S]*?)(?:<\/strong>)?(?=<\/p>)/g, '<div class="analysis-step"><span class="step-num">$1</span><span class="step-content">$2</span></div>');
 
   // 将内容拆分为多个卡片
-  let sections = enhancedHtml.split(/(?=<div class="important-block"|<h2)/).filter(s => s.trim().length > 0);
+  let rawSections = enhancedHtml.split(/(?=<div class="important-block"|<h2)/).filter(s => s.trim().length > 0);
   
-  // 优化：如果第一张卡片过短（通常只是个 H1 总标题），则将其与下一张合并，避免出现“空卡片”
-  if (sections.length > 1 && sections[0].length < 150) {
+  // 核心优化：将“练习题目”深度拆分为“题干卡片”和“解析引导卡片”
+  const sections: string[] = [];
+  rawSections.forEach(s => {
+    if ((s.includes('练习题目') || s.includes('【问】')) && s.length > 100) {
+      // 物理定位法：寻找解析引导的起点（优先寻找标记过的类名）
+      const guidancePos = s.indexOf('class="analysis-step"');
+      
+      if (guidancePos !== -1) {
+        const splitStart = s.lastIndexOf('<', guidancePos);
+        const stemPart = s.substring(0, splitStart);
+        let restPart = s.substring(splitStart);
+        
+        // 精准打捞所有答题区段落（可能有多行下划线）
+        let answerPart = "";
+        const aMatches = restPart.match(/<p class="answer-area">.*?<\/p>/g);
+        if (aMatches) {
+          answerPart = aMatches.join("");
+          aMatches.forEach(match => {
+            restPart = restPart.replace(match, "");
+          });
+        }
+        
+        sections.push(stemPart + answerPart);
+        sections.push(`<!--GUIDANCE-->${restPart}`);
+      } else {
+        // 如果类名定位失败，尝试正则定位第一个编号
+        const match = s.match(/<p>(?:\s*\d+[、.])/);
+        if (match && match.index !== undefined) {
+          const stemPart = s.substring(0, match.index);
+          const restPart = s.substring(match.index);
+          sections.push(stemPart);
+          sections.push(`<!--GUIDANCE-->${restPart}`);
+        } else {
+          sections.push(s);
+        }
+      }
+    } else {
+      sections.push(s);
+    }
+  });
+
+  // 优化：如果第一张卡片过短（通常只是个 H1 总标题），则将其与下一张合并
+  if (sections.length > 1 && sections[0].length < 150 && !sections[0].includes('<!--GUIDANCE-->')) {
     sections[1] = sections[0] + sections[1];
     sections.shift();
   }
 
   const cardsHtml = sections.map((content, index) => {
-    // 更加精准地识别题目卡片：必须包含具体的题目标识，且避开纯标题
-    const isQuestionCard = (content.includes('练习题目') || content.includes('【问】')) && content.length > 100;
+    // 如果是带标记的“解析引导”卡片，且有配套答案，则启用翻转
+    const isGuidanceCard = content.includes('<!--GUIDANCE-->');
     
-    if (isQuestionCard && backContent) {
+    if (isGuidanceCard && backContent) {
       const backHtml = (marked.parse(backContent) as string).replace(/<h[12].*?>.*?<\/h[12]>/g, '');
       return `
         <div class="card-item flip-container" data-index="${index}">
           <div class="card-inner" id="card-inner-${index}">
             <div class="card-front card-content-inner" onclick="window.toggleFlip(${index})">
-              <div class="card-scroll-area">${content}</div>
+              <div class="card-scroll-area">
+                <h2 style="color:var(--accent-pyro)">解析引导 / GUIDANCE</h2>
+                ${content.replace('<!--GUIDANCE-->', '')}
+              </div>
               <div class="flip-hint">
-                <span class="sparkle">✦</span> 点击卡片揭晓答案 / CLICK TO REVEAL
+                <span class="sparkle">✦</span> 点击揭晓最终答案 / REVEAL ANSWER
               </div>
             </div>
             <div class="card-back card-content-inner" onclick="window.toggleFlip(${index})">
@@ -76,7 +134,7 @@ const renderMarkdown = (md: string, backContent?: string) => {
                 ${backHtml}
               </div>
               <div class="flip-hint" style="color:var(--text-dim); opacity:0.6;">
-                ← 点击返回题目 / CLICK TO BACK
+                ← 点击返回引导 / CLICK TO BACK
               </div>
             </div>
           </div>
@@ -84,9 +142,12 @@ const renderMarkdown = (md: string, backContent?: string) => {
       `;
     }
 
+    // 普通卡片（包含拆分后的纯题干卡片）
     return `
       <div class="card-item" data-index="${index}">
-        <div class="card-content-inner">${content}</div>
+        <div class="card-content-inner">
+          <div class="card-scroll-area">${content}</div>
+        </div>
       </div>
     `;
   }).join('');
@@ -97,9 +158,11 @@ const renderMarkdown = (md: string, backContent?: string) => {
 
   return `
     <div class="swiper-wrapper">
-      <button class="nav-btn prev" onclick="window.moveCard(-1)">‹</button>
-      <div class="card-swiper" id="card-swiper">${cardsHtml}</div>
-      <button class="nav-btn next" onclick="window.moveCard(1)">›</button>
+      <div class="swiper-main-area">
+        <button class="nav-btn prev" onclick="window.moveCard(-1)">‹</button>
+        <div class="card-swiper" id="card-swiper">${cardsHtml}</div>
+        <button class="nav-btn next" onclick="window.moveCard(1)">›</button>
+      </div>
       <div class="swiper-dots" id="swiper-dots">${dotsHtml}</div>
     </div>
   `;
