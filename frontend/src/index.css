@@ -184,6 +184,65 @@ body::before {
   box-shadow: 0 0 20px var(--accent-pyro);
 }
 
+/* --- 卡片内局部重置按钮 --- */
+.card-reset-btn {
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  color: var(--accent-pyro);
+  padding: 4px 12px;
+  border-radius: 20px; /* 药丸型按钮 */
+  cursor: pointer;
+  margin-left: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: bold;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  vertical-align: middle;
+  gap: 4px;
+  box-shadow: 0 2px 8px rgba(255, 95, 46, 0.15);
+}
+
+.card-reset-btn:hover {
+  background: var(--accent-pyro);
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px var(--accent-pyro);
+}
+
+.card-reset-btn:active {
+  transform: translateY(0) scale(0.95);
+}
+
+/* --- 清除按钮样式 --- */
+.clear-btn {
+  background: rgba(255, 95, 46, 0.1);
+  border: 1px solid rgba(255, 95, 46, 0.4);
+  color: var(--accent-pyro);
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  backdrop-filter: blur(10px);
+}
+
+.clear-btn:hover {
+  background: var(--accent-pyro);
+  color: #fff;
+  box-shadow: 0 0 15px var(--accent-pyro);
+  transform: translateY(-1px);
+}
+
+.clear-btn:active {
+  transform: translateY(0);
+}
+
 .nav-btn:active { transform: translateY(-50%) scale(0.9); }
 
 .nav-btn.prev { left: 5px; }

@@ -69,7 +69,7 @@ const renderMarkdown = (md: string, backContent?: string, sectionPrefix: string 
   enhancedHtml = enhancedHtml.replace(/<p>(?:\s*<strong[^>]*>)?(\(\)?\d+[\.、]?|[①-⑳])\s*([\s\S]*?)(?:\s*<\/strong>)?<\/p>/g, 
     '<div class="sub-step"><span class="sub-num">$1</span><span class="sub-content">$2</span></div>');
   
-  // 3. 交互增强：强制将所有长下划线和方括号占位符转换为可输入区域 (无论是否在 answer-area 内)
+  // 3. 交互增强：强制将所有长下划线和方括号占位符转换为可输入区域
   enhancedHtml = enhancedHtml.replace(/_{5,}|\[\s{4,}\]/g, () => {
     const id = `ans-${courseTitle}-${sectionPrefix}-${answerIdx++}`;
     const saved = localStorage.getItem(id) || "";
@@ -84,11 +84,16 @@ const renderMarkdown = (md: string, backContent?: string, sectionPrefix: string 
   // 将内容拆分为多个卡片
   let rawSections = enhancedHtml.split(/(?=<div class="important-block"|<h2)/).filter(s => s.trim().length > 0);
   
-  // 核心优化：将“练习题目”深度拆分为“题干卡片”和“解析引导卡片”
+  // 核心优化：将内容拆分为多个卡片，并为所有交互式卡片注入“重做”按钮
   const sections: string[] = [];
-  rawSections.forEach(s => {
-    if ((s.includes('练习题目') || s.includes('【问】')) && s.length > 100) {
-      // 物理定位法：寻找解析引导的起点（优先寻找标记过的类名）
+  rawSections.forEach((s, idx) => {
+    const cardId = `card-${sectionPrefix}-${idx}`; // 为每个卡片生成唯一 ID
+    
+    // 识别交互式卡片：包含答题区、长下划线、方括号或已转换的填空区
+    const isInteractive = s.includes('answer-area') || s.includes('editable-answer') || /_{5,}|\[\s{4,}\]/.test(s);
+    
+    if (isInteractive) {
+      // 物理定位法：寻找解析引导的起点
       const guidancePos = s.indexOf('class="analysis-step"');
       
       if (guidancePos !== -1) {
@@ -101,38 +106,41 @@ const renderMarkdown = (md: string, backContent?: string, sectionPrefix: string 
         const aMatches = restPart.match(/<(?:p|div) class="answer-area">[\s\S]*?<\/(?:p|div)>/g);
         if (aMatches) {
           answerPart = aMatches.join("");
-          aMatches.forEach(match => {
-            restPart = restPart.replace(match, "");
-          });
+          aMatches.forEach(match => { restPart = restPart.replace(match, ""); });
         }
         
-        sections.push(stemPart + answerPart);
-        sections.push(`<!--GUIDANCE-->${restPart}`);
-      } else {
-        // 如果类名定位失败，尝试正则定位第一个编号
-        const match = s.match(/<p>(?:\s*\d+[、.])/);
-        if (match && match.index !== undefined) {
-          const stemPart = s.substring(0, match.index);
-          const restPart = s.substring(match.index);
-          sections.push(stemPart);
-          sections.push(`<!--GUIDANCE-->${restPart}`);
+        // 注入按钮：优先插入 H2 标题后，否则插入段落开头
+        let stemWithReset = stemPart;
+        if (stemPart.includes('</h2>')) {
+          stemWithReset = stemPart.replace(/(<h2[^>]*>.*?)(<\/h2>)/, `$1<button class="card-reset-btn" onclick="event.stopPropagation(); clearCardAnswers('${cardId}')">🔄 重做</button>$2`);
         } else {
-          sections.push(s);
+          stemWithReset = `<button class="card-reset-btn" style="margin-bottom:15px;" onclick="event.stopPropagation(); clearCardAnswers('${cardId}')">🔄 重做本卡</button>${stemPart}`;
         }
+        
+        sections.push(`<div id="${cardId}">${stemWithReset}${answerPart}</div>`);
+        sections.push(`<!--GUIDANCE--><div id="${cardId}-guidance">${restPart}</div>`);
+      } else {
+        // 无引导的纯交互卡片
+        let sWithReset = s;
+        if (s.includes('</h2>')) {
+          sWithReset = s.replace(/(<h2[^>]*>.*?)(<\/h2>)/, `$1<button class="card-reset-btn" onclick="event.stopPropagation(); clearCardAnswers('${cardId}')">🔄 重做</button>$2`);
+        } else {
+          sWithReset = `<button class="card-reset-btn" style="margin-bottom:15px;" onclick="event.stopPropagation(); clearCardAnswers('${cardId}')">🔄 重做本卡</button>${s}`;
+        }
+        sections.push(`<div id="${cardId}">${sWithReset}</div>`);
       }
     } else {
       sections.push(s);
     }
   });
 
-  // 优化：如果第一张卡片过短（通常只是个 H1 总标题），则将其与下一张合并
+  // 优化：如果第一张卡片过短，则将其与下一张合并
   if (sections.length > 1 && sections[0].length < 150 && !sections[0].includes('<!--GUIDANCE-->')) {
     sections[1] = sections[0] + sections[1];
     sections.shift();
   }
 
   const cardsHtml = sections.map((content, index) => {
-    // 如果是带标记的“解析引导”卡片，且有配套答案，则启用翻转
     const isGuidanceCard = content.includes('<!--GUIDANCE-->');
     
     if (isGuidanceCard && backContent) {
@@ -163,7 +171,6 @@ const renderMarkdown = (md: string, backContent?: string, sectionPrefix: string 
       `;
     }
 
-    // 普通卡片（包含拆分后的纯题干卡片）
     return `
       <div class="card-item" data-index="${index}">
         <div class="card-content-inner">
@@ -194,10 +201,8 @@ const Header = () => `
   <div class="app-header fade-in">
     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
       <div>
-        <h1 style="text-transform: uppercase; letter-spacing: 2px;">Chinese Daily Practice</h1>
-        <p style="font-size: 14px; color: var(--text-dim);">语文每日练 · 初中篇 v2.4.0</p>
+        <h1 style="letter-spacing: 1px; font-size: 26px; font-weight: 800; background: linear-gradient(to right, #fff, var(--text-dim)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">语文每日练 · 初中篇 v2.5.0</h1>
       </div>
-      <div style="font-size: 10px; color: var(--accent-pyro); border: 1px solid rgba(255, 95, 46, 0.3); padding: 2px 8px; border-radius: 2px;">TEYVAT EDITION</div>
     </div>
   </div>
 `;
@@ -250,6 +255,18 @@ const HomeView = async () => {
 
 const DetailView = async (day: string) => {
   (window as any).currentCourseTitle = day;
+
+  // 注入定向清空卡片答案逻辑
+  (window as any).clearCardAnswers = (cardId: string) => {
+    if (!confirm("确定要重做本题吗？")) return;
+    const card = document.getElementById(cardId);
+    if (!card) return;
+    card.querySelectorAll('.editable-answer').forEach(el => {
+      localStorage.removeItem(el.id);
+      (el as HTMLElement).innerText = "";
+    });
+  };
+
   if (Object.keys(dayContent).length === 0) dayContent = await fetchDayContent(day);
   const tabs = [{id:'topic',label:'主题'},{id:'methods',label:'方法'},{id:'examples',label:'典例'},{id:'practice',label:'实战'},{id:'review',label:'复习'}];
   
@@ -257,7 +274,6 @@ const DetailView = async (day: string) => {
   
   // 智能内容切分逻辑
   const reviewRaw = dayContent['review'] || '';
-  // 按 ## 标题拆分 review 内容，确保排除 H1 总标题的干扰
   const reviewSections = reviewRaw.split(/(?=##)/).filter(s => s.startsWith('##'));
   const answerSection = reviewSections.find(s => s.includes('答案')) || '';
   const consolidationSection = reviewSections.find(s => s.includes('巩固') || s.includes('复习') || s.includes('默写')) || '';
@@ -265,7 +281,6 @@ const DetailView = async (day: string) => {
   let backContent: string | undefined = undefined;
 
   if (activeTab === 'practice') {
-    // 提取纯答案作为翻转卡片的背面（精准剔除 ## 标题行）
     backContent = answerSection.replace(/^##.*答案.*\n?/m, '').trim();
   }
 
