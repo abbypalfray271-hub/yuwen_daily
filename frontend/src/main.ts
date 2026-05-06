@@ -123,7 +123,7 @@ const renderMarkdown = (md: string, backContent?: string, sectionPrefix: string 
   }
 
   const cardsHtml = sections.map((content, index) => {
-    const cardId = sectionPrefix + '_' + index;
+    const cardId = `${dayId}_${sectionPrefix}_${index}`;
     const isGuidanceCard = content.includes('<!--GUIDANCE-->');
     const uploadPath = getUpload(cardId);
     const previewHtml = uploadPath ? `<div class="photo-preview"><img src="${uploadPath}" onclick="event.stopPropagation(); window.open('${uploadPath}', '_blank')"></div>` : '';
@@ -132,7 +132,17 @@ const renderMarkdown = (md: string, backContent?: string, sectionPrefix: string 
       const backHtml = (marked.parse(backContent) as string).replace(/<h[12].*?>.*?<\/h[12]>/g, '');
       const isLockedForStudent = sectionPrefix === 'practice' && !isAdmin() && !getUpload(cardId);
       const hintText = isLockedForStudent ? '<span class="sparkle">🔒</span> 需拍照上传后解锁解析 / UPLOAD PHOTO TO UNLOCK' : '<span class="sparkle">✦</span> 点击揭晓最终答案 / REVEAL ANSWER';
-      
+      const displayedBackHtml = isLockedForStudent 
+        ? `<div class="locked-placeholder fade-in">
+             <div style="font-size: 40px; margin-bottom: 20px; opacity: 0.8;">🔒</div>
+             <h3 style="font-family: var(--font-serif); color: var(--accent-pyro); margin-bottom: 10px;">参考解析已锁定</h3>
+             <p style="font-size: 14px; color: var(--text-dim); line-height: 1.6;">请点击前方的“📷 拍照上传”按钮<br>提交您的书面作业后解锁本题解析</p>
+           </div>`
+        : `<div class="card-scroll-area">
+             <h2 style="color:var(--accent)">参考解析 / ANALYSIS</h2>
+             ${backHtml}
+           </div>`;
+
       return `<div class="card-item flip-container" data-index="${index}">
         <div class="card-inner" id="card-inner-${index}" data-section="${sectionPrefix}" data-card-id="${cardId}">
           <div class="card-front card-content-inner" onclick="window.toggleFlip(${index})">
@@ -144,10 +154,7 @@ const renderMarkdown = (md: string, backContent?: string, sectionPrefix: string 
             <div class="flip-hint">${hintText}</div>
           </div>
           <div class="card-back card-content-inner" onclick="window.toggleFlip(${index})">
-            <div class="card-scroll-area">
-              <h2 style="color:var(--accent)">参考解析 / ANALYSIS</h2>
-              ${backHtml}
-            </div>
+            ${displayedBackHtml}
             <div class="flip-hint" style="color:var(--text-dim); opacity:0.6;">← 点击返回引导 / CLICK TO BACK</div>
           </div>
         </div>
@@ -165,7 +172,7 @@ const Header = () => `
   <div class="app-header fade-in">
     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
       <div>
-        <h1 style="letter-spacing: 1px; font-size: 24px; font-weight: 800; background: linear-gradient(to right, #fff, var(--text-dim)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">语文每日练 · 初中篇 v3.2.0</h1>
+        <h1 style="letter-spacing: 1px; font-size: 24px; font-weight: 800; background: linear-gradient(to right, #fff, var(--text-dim)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">语文每日练 · 初中篇 v3.3.0</h1>
       </div>
       <div style="display: flex; align-items: center; gap: 10px;">
         <button onclick="window.toggleAdmin()" class="btn-teyvat-small ${isAdmin() ? 'active' : ''}">

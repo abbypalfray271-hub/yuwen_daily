@@ -884,3 +884,18 @@ body::before {
 .photo-preview img:hover {
   transform: scale(1.05);
 }
+
+/* --- Locked Placeholder --- */
+.locked-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 200px;
+  text-align: center;
+  padding: 40px 20px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  border: 1px dashed rgba(255, 95, 46, 0.3);
+}
