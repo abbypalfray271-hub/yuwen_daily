@@ -722,3 +722,84 @@ body::before {
     text-align: center;
   }
 }
+
+/* --- Admin & Editor Styles --- */
+.tiyvat-admin-panel {
+  background: rgba(255, 183, 3, 0.05);
+  border: 1px dashed var(--accent-soft);
+  border-radius: 8px;
+  padding: 15px;
+  margin: 0 1.5rem 30px 1.5rem;
+}
+
+.btn-teyvat-small {
+  background: transparent;
+  border: 1px solid var(--accent-soft);
+  color: var(--text-dim);
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-teyvat-small.active {
+  border-color: var(--accent-pyro);
+  color: var(--accent-pyro);
+  background: rgba(255, 183, 3, 0.1);
+}
+
+.btn-teyvat-op {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  color: white;
+  padding: 8px 15px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  flex: 1;
+  min-width: 80px;
+}
+
+.btn-teyvat-op:hover {
+  background: rgba(255, 183, 3, 0.1);
+  border-color: var(--accent-pyro);
+}
+
+.btn-edit-course {
+  font-size: 18px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+
+.btn-edit-course:hover {
+  opacity: 1;
+}
+
+.tiyvat-textarea {
+  width: 100%;
+  height: calc(100vh - 350px);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border);
+  color: #d4cfc7;
+  padding: 15px;
+  border-radius: 8px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  resize: none;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.tiyvat-textarea:focus {
+  border-color: var(--accent-pyro);
+}
+
+.editor-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0 1.5rem;
+}
