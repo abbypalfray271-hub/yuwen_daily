@@ -722,6 +722,27 @@ body::before {
     text-align: center;
   }
 }
+/* --- Minimalist Locking --- */
+.course-card.locked {
+  filter: grayscale(1);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.lock-btn {
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  transition: all 0.2s;
+  pointer-events: auto !important; /* Always allow clicking the lock button */
+}
+
+.lock-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
 
 /* --- Admin & Editor Styles --- */
 .tiyvat-admin-panel {

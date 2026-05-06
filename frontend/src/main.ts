@@ -5,7 +5,7 @@ import { getUserStats } from './utils/storage';
 import { pushSync } from './utils/sync';
 import { isAdmin, setAdmin } from './utils/auth';
 import { showAuthModal } from './components/AuthModal';
-import { getDayOverride, saveDayOverride, clearDayOverride } from './utils/storage';
+import { getDayOverride, saveDayOverride, clearDayOverride, isCourseLocked, setCourseLock } from './utils/storage';
 
 // --- State ---
 let currentView: 'home' | 'detail' | 'editor' = 'home';
@@ -138,7 +138,7 @@ const Header = () => `
   <div class="app-header fade-in">
     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
       <div>
-        <h1 style="letter-spacing: 1px; font-size: 24px; font-weight: 800; background: linear-gradient(to right, #fff, var(--text-dim)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">语文每日练 · 初中篇 v2.7.0</h1>
+        <h1 style="letter-spacing: 1px; font-size: 24px; font-weight: 800; background: linear-gradient(to right, #fff, var(--text-dim)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">语文每日练 · 初中篇 v2.8.1</h1>
       </div>
       <div style="display: flex; align-items: center; gap: 10px;">
         <button onclick="window.toggleAdmin()" class="btn-teyvat-small ${isAdmin() ? 'active' : ''}">
@@ -154,8 +154,9 @@ const HomeView = async () => {
   const stats = getUserStats();
   const listHtml = days.map(day => {
     const isOverridden = !!getDayOverride(day);
+    const isLocked = isCourseLocked(day);
     return `
-      <div class="course-card fade-in" onclick="window.navigateToDetail('${day}')">
+      <div class="course-card fade-in ${isLocked ? 'locked' : ''}" onclick="window.navigateToDetail('${day}')">
         <div class="poem-info">
           <div style="display: flex; align-items: center; gap: 8px;">
             <h3 style="font-family: var(--font-serif); margin-bottom: 6px;">专项考点第 ${day} 课</h3>
@@ -164,7 +165,12 @@ const HomeView = async () => {
           <div class="poem-meta" style="font-size: 13px; color: var(--text-dim);">Day ${day.padStart(2, '0')} · 中考复习专项</div>
         </div>
         <div style="display: flex; align-items: center; gap: 15px;">
-          ${isAdmin() ? `<div class="btn-edit-course" onclick="event.stopPropagation(); window.navigateToEditor('${day}')">✏️</div>` : ''}
+          ${isAdmin() ? `
+            <div class="lock-btn" onclick="event.stopPropagation(); window.toggleCourseLock('${day}')" title="切换开启/关闭状态">
+              ${isLocked ? '🔒' : '🔓'}
+            </div>
+            <div class="btn-edit-course" onclick="event.stopPropagation(); window.navigateToEditor('${day}')">✏️</div>
+          ` : ''}
           <div style="color: var(--accent-pyro); font-size: 24px;">✦</div>
         </div>
       </div>
@@ -339,7 +345,16 @@ let syncTimeout: any = null;
   if (inner) inner.classList.toggle('flipped');
 };
 (window as any).navigateToDetail = (day: string) => {
+  if (isCourseLocked(day) && !isAdmin()) {
+    alert('该课程当前处于关闭状态，请联系老师开启。');
+    return;
+  }
   currentView = 'detail'; currentDay = day; activeTab = 'topic'; dayContent = {}; render();
+};
+(window as any).toggleCourseLock = (day: string) => {
+  const current = isCourseLocked(day);
+  setCourseLock(day, !current);
+  render();
 };
 (window as any).navigateToHome = () => {
   currentView = 'home'; currentDay = null; dayContent = {}; render();
