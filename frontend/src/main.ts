@@ -29,9 +29,17 @@ const fetchDayContent = async (day: string): Promise<Record<string, string>> => 
 };
 
 // --- Custom Renderer ---
-const renderMarkdown = (md: string, backContent?: string) => {
-  // 预处理：将“答：”和随后的下划线强制合并，防止换行导致拆分失败
-  let processedMd = md.replace(/(答：)\n*\s*(_{5,})/g, '$1$2');
+const renderMarkdown = (md: string, backContent?: string, sectionPrefix: string = "default") => {
+  let answerIdx = 0;
+  const courseTitle = (window as any).currentCourseTitle || "unknown";
+
+  // 极致预处理：强制移除“答：”周围的加粗，并将其与后续下划线强制拉到同一行
+  let processedMd = md.replace(/\*\*(答：)\*\*/g, '$1');
+  processedMd = processedMd.replace(/(答：)[\s\n]*(_{5,}|\[\s{4,}\])/g, '$1$2');
+  
+  // 预处理：万能编号强制换行，识别 (1), ()1, ① 等所有格式，并自动清理前面的连接符
+  processedMd = processedMd.replace(/(?:[\-，,])?\s*(\(\)?\d+[\.、]?|[①-⑳])/g, '\n\n$1');
+  
   // 预处理：去掉编号周围的加粗并强制换行
   processedMd = processedMd.replace(/\*\*(\d+[、.])(.*?)\*\*/g, '$1$2'); 
   processedMd = processedMd.replace(/(\*\*【问】.*?\*\*)(\s*\d+[、.])/g, '$1\n\n$2');
@@ -39,6 +47,7 @@ const renderMarkdown = (md: string, backContent?: string) => {
   processedMd = processedMd.replace(/-{5,}/g, '\n---\n');
   let rawHtml = marked.parse(processedMd) as string;
 
+  // 1. 语义化增强：识别核心背诵块
   let enhancedHtml = rawHtml.replace(/<blockquote>\s*<p>\[!IMPORTANT\]\s*(.+?)<\/p>\s*([\s\S]+?)<\/blockquote>/g, (match, title, body) => {
     const badgeTitle = title.replace(/\[核心背诵\]/, '<span class="badge-gold">核心背诵</span>');
     return `
@@ -51,11 +60,23 @@ const renderMarkdown = (md: string, backContent?: string) => {
     `;
   });
   
-  // 语义化增强：将包含“答：”或大量下划线的段落标记为答题区 (支持跨行)
-  enhancedHtml = enhancedHtml.replace(/<p>(?:<strong>)?(答：|_{5,})([\s\S]*?)(?:<\/strong>)?(?=<\/p>)/g, '<p class="answer-area">$1$2');
+  // 2. 核心增强：精准且鲁棒地识别答题区 (不限标签，支持嵌套)
+  enhancedHtml = enhancedHtml.replace(/<[p|div][^>]*>(?:\s*<strong[^>]*>)?(答：|_{5,}|\[\s{4,}\])([\s\S]*?)(?:\s*<\/strong>)?\s*<\/[p|div]>/g, (match, p1, p2) => {
+    return `<div class="answer-area">${p1}${p2}</div>`;
+  });
+
+  // 2.5 子步骤增强：识别 (1), ()1, ① 等所有编号格式并实现竖排对齐
+  enhancedHtml = enhancedHtml.replace(/<p>(?:\s*<strong[^>]*>)?(\(\)?\d+[\.、]?|[①-⑳])\s*([\s\S]*?)(?:\s*<\/strong>)?<\/p>/g, 
+    '<div class="sub-step"><span class="sub-num">$1</span><span class="sub-content">$2</span></div>');
   
-  // 交互增强：将下划线转换为可输入区域（物理转化为 span，防止点击翻转）
-  enhancedHtml = enhancedHtml.replace(/_{5,}/g, '<span class="editable-answer" contenteditable="true" spellcheck="false" onclick="event.stopPropagation()"></span>');
+  // 3. 交互增强：强制将所有长下划线和方括号占位符转换为可输入区域 (无论是否在 answer-area 内)
+  enhancedHtml = enhancedHtml.replace(/_{5,}|\[\s{4,}\]/g, () => {
+    const id = `ans-${courseTitle}-${sectionPrefix}-${answerIdx++}`;
+    const saved = localStorage.getItem(id) || "";
+    return `<span class="editable-answer" id="${id}" contenteditable="true" spellcheck="false" 
+            onclick="event.stopPropagation()" 
+            oninput="localStorage.setItem('${id}', this.innerText)">${saved}</span>`;
+  });
 
   // 语义化增强：将“1、”，“2、”等引导步骤标记为列表式分析步骤 (支持跨行)
   enhancedHtml = enhancedHtml.replace(/<p>(?:<strong>)?(\d+[、.])\s*([\s\S]*?)(?:<\/strong>)?(?=<\/p>)/g, '<div class="analysis-step"><span class="step-num">$1</span><span class="step-content">$2</span></div>');
@@ -75,9 +96,9 @@ const renderMarkdown = (md: string, backContent?: string) => {
         const stemPart = s.substring(0, splitStart);
         let restPart = s.substring(splitStart);
         
-        // 精准打捞所有答题区段落（可能有多行下划线）
+        // 精准打捞所有答题区段落（兼容 p 和 div）
         let answerPart = "";
-        const aMatches = restPart.match(/<p class="answer-area">.*?<\/p>/g);
+        const aMatches = restPart.match(/<(?:p|div) class="answer-area">[\s\S]*?<\/(?:p|div)>/g);
         if (aMatches) {
           answerPart = aMatches.join("");
           aMatches.forEach(match => {
@@ -174,7 +195,7 @@ const Header = () => `
     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
       <div>
         <h1 style="text-transform: uppercase; letter-spacing: 2px;">Chinese Daily Practice</h1>
-        <p style="font-size: 14px; color: var(--text-dim);">语文每日练 · 初中篇 v2.2.0</p>
+        <p style="font-size: 14px; color: var(--text-dim);">语文每日练 · 初中篇 v2.4.0</p>
       </div>
       <div style="font-size: 10px; color: var(--accent-pyro); border: 1px solid rgba(255, 95, 46, 0.3); padding: 2px 8px; border-radius: 2px;">TEYVAT EDITION</div>
     </div>
@@ -228,6 +249,7 @@ const HomeView = async () => {
 };
 
 const DetailView = async (day: string) => {
+  (window as any).currentCourseTitle = day;
   if (Object.keys(dayContent).length === 0) dayContent = await fetchDayContent(day);
   const tabs = [{id:'topic',label:'主题'},{id:'methods',label:'方法'},{id:'examples',label:'典例'},{id:'practice',label:'实战'},{id:'review',label:'复习'}];
   
@@ -262,7 +284,7 @@ const DetailView = async (day: string) => {
         ${tabs.map(t => `<div class="tab ${t.id === activeTab ? 'active' : ''}" onclick="window.switchTab('${t.id}')">${t.label}</div>`).join('')}
       </div>
       <div id="tab-content" style="padding: 0; background: transparent; box-shadow: none; border: none;">
-        ${renderMarkdown(content, backContent)}
+        ${renderMarkdown(content, backContent, activeTab)}
       </div>
     </div>
   `;
