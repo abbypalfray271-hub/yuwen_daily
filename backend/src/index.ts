@@ -62,6 +62,14 @@ const __dirname = dirname(__filename);
 
 // 数据源路径
 const WIKI_PATH = path.resolve(__dirname, '../../wiki');
+const UPLOADS_PATH = path.resolve(__dirname, '../uploads');
+
+// 确保 uploads 目录存在
+if (!fs.existsSync(UPLOADS_PATH)) {
+  fs.mkdirSync(UPLOADS_PATH, { recursive: true });
+}
+
+app.use('/uploads', express.static(UPLOADS_PATH));
 
 // 数据库初始化
 const dbPath = path.resolve(__dirname, '../data/daily.db');
@@ -324,6 +332,21 @@ app.get('/api/admin/export-progress', (req, res) => {
   if (key !== process.env.ADMIN_KEY) return res.status(401).json({ error: 'Unauthorized' });
   const allProgress = db.prepare('SELECT users.nickname, users.contact, progress.day_id, progress.mastered_data FROM users LEFT JOIN progress ON users.contact = progress.contact').all();
   res.json(allProgress);
+});
+
+app.post('/api/upload', checkAccess, (req, res) => {
+  const { image, day, contact } = req.body;
+  if (!image || !day || !contact) return res.status(400).json({ error: 'Missing data' });
+
+  try {
+    const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
+    const buffer = Buffer.from(base64Data, 'base64');
+    const fileName = `${contact}_${day}_${Date.now()}.jpg`;
+    fs.writeFileSync(path.join(UPLOADS_PATH, fileName), buffer);
+    res.json({ success: true, fileName });
+  } catch (err) {
+    res.status(500).json({ error: 'Upload failed' });
+  }
 });
 
 app.listen(process.env.PORT || 3005, () => console.log('Backend running...'));

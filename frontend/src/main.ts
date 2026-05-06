@@ -5,7 +5,7 @@ import { getUserStats } from './utils/storage';
 import { pushSync } from './utils/sync';
 import { isAdmin, setAdmin } from './utils/auth';
 import { showAuthModal } from './components/AuthModal';
-import { getDayOverride, saveDayOverride, clearDayOverride, isCourseLocked, setCourseLock } from './utils/storage';
+import { getDayOverride, saveDayOverride, clearDayOverride, isCourseLocked, setCourseLock, getUpload, saveUpload } from './utils/storage';
 
 // --- State ---
 let currentView: 'home' | 'detail' | 'editor' = 'home';
@@ -95,18 +95,18 @@ const renderMarkdown = (md: string, backContent?: string, sectionPrefix: string 
         }
         let stemWithReset = stemPart;
         if (stemPart.includes('</h2>')) {
-          stemWithReset = stemPart.replace(/(<h2[^>]*>.*?)(<\/h2>)/, `$1<button class="card-reset-btn" onclick="event.stopPropagation(); clearCardAnswers('${cardId}')">🔄 重做</button>$2`);
+          stemWithReset = stemPart.replace(/(<h2[^>]*>.*?)(<\/h2>)/, `$1<div class="card-btn-group"><button class="card-reset-btn" onclick="event.stopPropagation(); clearCardAnswers('${cardId}')">🔄 重做</button><button class="card-upload-btn" onclick="event.stopPropagation(); window.triggerPhotoUpload('${cardId}')">📷 拍照上传</button></div>$2`);
         } else {
-          stemWithReset = `<button class="card-reset-btn" style="margin-bottom:15px;" onclick="event.stopPropagation(); clearCardAnswers('${cardId}')">🔄 重做本卡</button>${stemPart}`;
+          stemWithReset = `<div class="card-btn-group"><button class="card-reset-btn" onclick="event.stopPropagation(); clearCardAnswers('${cardId}')">🔄 重做本卡</button><button class="card-upload-btn" onclick="event.stopPropagation(); window.triggerPhotoUpload('${cardId}')">📷 拍照上传</button></div>${stemPart}`;
         }
         sections.push(`<div id="${cardId}">${stemWithReset}${answerPart}</div>`);
         sections.push(`<!--GUIDANCE--><div id="${cardId}-guidance">${restPart}</div>`);
       } else {
         let sWithReset = s;
         if (s.includes('</h2>')) {
-          sWithReset = s.replace(/(<h2[^>]*>.*?)(<\/h2>)/, `$1<button class="card-reset-btn" onclick="event.stopPropagation(); clearCardAnswers('${cardId}')">🔄 重做</button>$2`);
+          sWithReset = s.replace(/(<h2[^>]*>.*?)(<\/h2>)/, `$1<div class="card-btn-group"><button class="card-reset-btn" onclick="event.stopPropagation(); clearCardAnswers('${cardId}')">🔄 重做</button><button class="card-upload-btn" onclick="event.stopPropagation(); window.triggerPhotoUpload('${cardId}')">📷 拍照上传</button></div>$2`);
         } else {
-          sWithReset = `<button class="card-reset-btn" style="margin-bottom:15px;" onclick="event.stopPropagation(); clearCardAnswers('${cardId}')">🔄 重做本卡</button>${s}`;
+          sWithReset = `<div class="card-btn-group"><button class="card-reset-btn" onclick="event.stopPropagation(); clearCardAnswers('${cardId}')">🔄 重做本卡</button><button class="card-upload-btn" onclick="event.stopPropagation(); window.triggerPhotoUpload('${cardId}')">📷 拍照上传</button></div>${s}`;
         }
         sections.push(`<div id="${cardId}">${sWithReset}</div>`);
       }
@@ -121,12 +121,16 @@ const renderMarkdown = (md: string, backContent?: string, sectionPrefix: string 
   }
 
   const cardsHtml = sections.map((content, index) => {
+    const cardId = swiperId + '_' + index;
     const isGuidanceCard = content.includes('<!--GUIDANCE-->');
+    const uploadPath = getUpload(cardId);
+    const previewHtml = uploadPath ? `<div class="photo-preview"><img src="${uploadPath}" onclick="event.stopPropagation(); window.open('${uploadPath}', '_blank')"></div>` : '';
+
     if (isGuidanceCard && backContent) {
       const backHtml = (marked.parse(backContent) as string).replace(/<h[12].*?>.*?<\/h[12]>/g, '');
-      return `<div class="card-item flip-container" data-index="${index}"><div class="card-inner" id="card-inner-${index}"><div class="card-front card-content-inner" onclick="window.toggleFlip(${index})"><div class="card-scroll-area"><h2 style="color:var(--accent-pyro)">解析引导 / GUIDANCE</h2>${content.replace('<!--GUIDANCE-->', '')}</div><div class="flip-hint"><span class="sparkle">✦</span> 点击揭晓最终答案 / REVEAL ANSWER</div></div><div class="card-back card-content-inner" onclick="window.toggleFlip(${index})"><div class="card-scroll-area"><h2 style="color:var(--accent)">参考解析 / ANALYSIS</h2>${backHtml}</div><div class="flip-hint" style="color:var(--text-dim); opacity:0.6;">← 点击返回引导 / CLICK TO BACK</div></div></div></div>`;
+      return `<div class="card-item flip-container" data-index="${index}"><div class="card-inner" id="card-inner-${index}"><div class="card-front card-content-inner" onclick="window.toggleFlip(${index})"><div class="card-scroll-area"><h2 style="color:var(--accent-pyro)">解析引导 / GUIDANCE</h2>${content.replace('<!--GUIDANCE-->', '')}${previewHtml}</div><div class="flip-hint"><span class="sparkle">✦</span> 点击揭晓最终答案 / REVEAL ANSWER</div></div><div class="card-back card-content-inner" onclick="window.toggleFlip(${index})"><div class="card-scroll-area"><h2 style="color:var(--accent)">参考解析 / ANALYSIS</h2>${backHtml}</div><div class="flip-hint" style="color:var(--text-dim); opacity:0.6;">← 点击返回引导 / CLICK TO BACK</div></div></div></div>`;
     }
-    return `<div class="card-item" data-index="${index}"><div class="card-content-inner"><div class="card-scroll-area">${content}</div></div></div>`;
+    return `<div class="card-item" data-index="${index}"><div class="card-content-inner"><div class="card-scroll-area">${content}${previewHtml}</div></div></div>`;
   }).join('');
 
   const dotsHtml = sections.map((_, i) => `<div class="dot ${i === 0 ? 'active' : ''}" data-index="${i}" onclick="window.scrollToCard(${i})"></div>`).join('');
@@ -138,7 +142,7 @@ const Header = () => `
   <div class="app-header fade-in">
     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
       <div>
-        <h1 style="letter-spacing: 1px; font-size: 24px; font-weight: 800; background: linear-gradient(to right, #fff, var(--text-dim)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">语文每日练 · 初中篇 v2.8.1</h1>
+        <h1 style="letter-spacing: 1px; font-size: 24px; font-weight: 800; background: linear-gradient(to right, #fff, var(--text-dim)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">语文每日练 · 初中篇 v2.9.0</h1>
       </div>
       <div style="display: flex; align-items: center; gap: 10px;">
         <button onclick="window.toggleAdmin()" class="btn-teyvat-small ${isAdmin() ? 'active' : ''}">
@@ -240,6 +244,7 @@ const DetailView = async (day: string) => {
       </div>
       <div class="category-tabs">${tabs.map(t => `<div class="tab ${t.id === activeTab ? 'active' : ''}" onclick="window.switchTab('${t.id}')">${t.label}</div>`).join('')}</div>
       <div id="tab-content" style="padding: 0; background: transparent; box-shadow: none; border: none;">${renderMarkdown(content, backContent, activeTab)}</div>
+      <input type="file" id="photo-upload-input" style="display: none;" accept="image/*" capture="environment" onchange="window.handlePhotoSelect(event)">
     </div>
   `;
 };
@@ -457,5 +462,36 @@ window.addEventListener('auth_error', (e: any) => {
   localStorage.clear();
   window.location.reload();
 });
+
+(window as any).triggerPhotoUpload = (cardId: string) => {
+  (window as any).pendingUploadCardId = cardId;
+  document.getElementById('photo-upload-input')?.click();
+};
+
+(window as any).handlePhotoSelect = async (e: any) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const cardId = (window as any).pendingUploadCardId;
+  const stats = getUserStats();
+
+  const reader = new FileReader();
+  reader.onload = async (event) => {
+    const base64 = event.target?.result as string;
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64, day: currentDay, contact: stats.contact })
+      });
+      const data = await res.json();
+      if (data.success) {
+        saveUpload(cardId, data.fileName);
+        render();
+        window.triggerSync();
+      } else { alert('上传失败'); }
+    } catch { alert('上传出错'); }
+  };
+  reader.readAsDataURL(file);
+};
 
 render();

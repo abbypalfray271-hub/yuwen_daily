@@ -824,3 +824,49 @@ body::before {
   flex-direction: column;
   padding: 0 1.5rem;
 }
+
+/* --- Photo Upload --- */
+.card-btn-group {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.card-upload-btn {
+  background: rgba(46, 196, 182, 0.1);
+  border: 1px solid rgba(46, 196, 182, 0.4);
+  color: #2ec4b6 !important;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.card-upload-btn:hover {
+  background: rgba(46, 196, 182, 0.2);
+  border-color: #2ec4b6;
+  transform: translateY(-1px);
+}
+
+.photo-preview {
+  margin-top: 25px;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.photo-preview img {
+  max-width: 150px;
+  max-height: 150px;
+  border-radius: 4px;
+  cursor: zoom-in;
+  transition: transform 0.2s;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.photo-preview img:hover {
+  transform: scale(1.05);
+}

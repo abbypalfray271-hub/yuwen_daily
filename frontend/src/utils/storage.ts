@@ -63,6 +63,9 @@ export const setCourseLock = (dayId: string, locked: boolean) => {
   else localStorage.removeItem(`lock_${dayId}`);
 };
 
+export const getUpload = (cardId: string) => localStorage.getItem(`upload_${cardId}`);
+export const saveUpload = (cardId: string, path: string) => localStorage.setItem(`upload_${cardId}`, path);
+
 export function clearDayOverride(dayId: string) {
   localStorage.removeItem(`day_override_${dayId}`);
 }
