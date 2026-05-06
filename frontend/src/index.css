@@ -726,7 +726,6 @@ body::before {
 .course-card.locked {
   filter: grayscale(1);
   opacity: 0.5;
-  pointer-events: none;
 }
 
 .lock-btn {
@@ -734,14 +733,29 @@ body::before {
   cursor: pointer;
   padding: 4px;
   background: rgba(255, 255, 255, 0.1);
+  border: none;
+  outline: none;
   border-radius: 4px;
   transition: all 0.2s;
-  pointer-events: auto !important; /* Always allow clicking the lock button */
+  pointer-events: auto !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .lock-btn:hover {
   background: rgba(255, 255, 255, 0.2);
   transform: scale(1.1);
+}
+
+.student-lock-badge {
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.4);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  white-space: nowrap;
 }
 
 /* --- Admin & Editor Styles --- */

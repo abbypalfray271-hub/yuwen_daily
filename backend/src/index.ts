@@ -63,11 +63,28 @@ const __dirname = dirname(__filename);
 // 数据源路径
 const WIKI_PATH = path.resolve(__dirname, '../../wiki');
 const UPLOADS_PATH = path.resolve(__dirname, '../uploads');
+const LOCKS_PATH = path.resolve(__dirname, '../data/course_locks.json');
 
-// 确保 uploads 目录存在
-if (!fs.existsSync(UPLOADS_PATH)) {
-  fs.mkdirSync(UPLOADS_PATH, { recursive: true });
-}
+// 确保目录存在
+if (!fs.existsSync(UPLOADS_PATH)) fs.mkdirSync(UPLOADS_PATH, { recursive: true });
+if (!fs.existsSync(path.dirname(LOCKS_PATH))) fs.mkdirSync(path.dirname(LOCKS_PATH), { recursive: true });
+if (!fs.existsSync(LOCKS_PATH)) fs.writeFileSync(LOCKS_PATH, JSON.stringify([]));
+
+const getLockedDays = (): string[] => {
+  try {
+    const data = fs.readFileSync(LOCKS_PATH, 'utf-8');
+    return JSON.parse(data || '[]');
+  } catch (e) {
+    return [];
+  }
+};
+const saveLockedDays = (days: string[]) => {
+  try {
+    fs.writeFileSync(LOCKS_PATH, JSON.stringify(days));
+  } catch (e) {
+    console.error('Save locks failed:', e);
+  }
+};
 
 app.use('/uploads', express.static(UPLOADS_PATH));
 
@@ -112,6 +129,12 @@ db.exec(`
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
+  CREATE TABLE IF NOT EXISTS user_sync (
+    contact TEXT PRIMARY KEY,
+    sync_data TEXT,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
   CREATE TABLE IF NOT EXISTS code_batches (
     batch_id TEXT PRIMARY KEY,
     count INTEGER,
@@ -138,6 +161,7 @@ const checkAccess = (req: any, res: any, next: any) => {
 };
 
 // --- API ---
+app.get('/api/ping', (req, res) => res.json({ success: true, message: 'pong', version: '2.9.1' }));
 
 app.post('/api/send-code', smsLimiter, async (req, res) => {
   const { phone } = req.body;
@@ -272,7 +296,11 @@ app.get('/api/courseware/list', async (req, res) => {
   };
   
   scanDir(WIKI_PATH);
-  res.json({ success: true, days: Array.from(daySet).sort((a, b) => parseInt(a) - parseInt(b)) });
+  res.json({ 
+    success: true, 
+    days: Array.from(daySet).sort((a, b) => parseInt(a) - parseInt(b)),
+    lockedDays: getLockedDays()
+  });
 });
 
 app.get('/api/courseware/get', checkAccess, async (req, res) => {
@@ -310,6 +338,17 @@ app.get('/api/courseware/get', checkAccess, async (req, res) => {
   }
 });
 
+app.post('/api/sync', checkAccess, (req, res) => {
+  const { contact, syncData } = req.body;
+  if (!contact || !syncData) return res.status(400).json({ error: 'Missing data' });
+  try {
+    db.prepare('INSERT OR REPLACE INTO user_sync (contact, sync_data, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)').run(contact, JSON.stringify(syncData));
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Sync failed' });
+  }
+});
+
 // --- 管理后台 ---
 app.post('/api/admin/generate-codes', (req, res) => {
   const { key, count, durationDays } = req.body;
@@ -330,7 +369,11 @@ app.post('/api/admin/generate-codes', (req, res) => {
 app.get('/api/admin/export-progress', (req, res) => {
   const { key } = req.query;
   if (key !== process.env.ADMIN_KEY) return res.status(401).json({ error: 'Unauthorized' });
-  const allProgress = db.prepare('SELECT users.nickname, users.contact, progress.day_id, progress.mastered_data FROM users LEFT JOIN progress ON users.contact = progress.contact').all();
+  const allProgress = db.prepare(`
+    SELECT users.nickname, users.contact, user_sync.sync_data, user_sync.updated_at 
+    FROM users 
+    LEFT JOIN user_sync ON users.contact = user_sync.contact
+  `).all();
   res.json(allProgress);
 });
 
@@ -346,6 +389,24 @@ app.post('/api/upload', checkAccess, (req, res) => {
     res.json({ success: true, fileName });
   } catch (err) {
     res.status(500).json({ error: 'Upload failed' });
+  }
+});
+
+app.post('/api/admin/toggle-lock', checkAccess, (req, res) => {
+  const { day, locked } = req.body;
+  if (!day) return res.status(400).json({ error: 'Missing day' });
+
+  try {
+    let lockedDays = getLockedDays();
+    if (locked) {
+      if (!lockedDays.includes(day)) lockedDays.push(day);
+    } else {
+      lockedDays = lockedDays.filter(d => d !== day);
+    }
+    saveLockedDays(lockedDays);
+    res.json({ success: true, lockedDays });
+  } catch (err) {
+    res.status(500).json({ error: 'Server lock update failed' });
   }
 });
 

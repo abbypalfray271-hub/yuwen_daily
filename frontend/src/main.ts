@@ -13,11 +13,13 @@ let currentDay: string | null = null;
 let activeTab = 'topic';
 let dayContent: Record<string, string> = {};
 let isSessionUnlocked = sessionStorage.getItem('yuwen_session_unlocked') === 'true';
+let serverLockedDays: string[] = [];
 
 // --- API ---
 const fetchList = async (): Promise<string[]> => {
   const res = await fetch('/api/courseware/list');
   const data = await res.json();
+  serverLockedDays = data.lockedDays || [];
   return data.days;
 };
 
@@ -121,7 +123,7 @@ const renderMarkdown = (md: string, backContent?: string, sectionPrefix: string 
   }
 
   const cardsHtml = sections.map((content, index) => {
-    const cardId = swiperId + '_' + index;
+    const cardId = sectionPrefix + '_' + index;
     const isGuidanceCard = content.includes('<!--GUIDANCE-->');
     const uploadPath = getUpload(cardId);
     const previewHtml = uploadPath ? `<div class="photo-preview"><img src="${uploadPath}" onclick="event.stopPropagation(); window.open('${uploadPath}', '_blank')"></div>` : '';
@@ -158,7 +160,7 @@ const HomeView = async () => {
   const stats = getUserStats();
   const listHtml = days.map(day => {
     const isOverridden = !!getDayOverride(day);
-    const isLocked = isCourseLocked(day);
+    const isLocked = serverLockedDays.includes(day);
     return `
       <div class="course-card fade-in ${isLocked ? 'locked' : ''}" onclick="window.navigateToDetail('${day}')">
         <div class="poem-info">
@@ -170,11 +172,12 @@ const HomeView = async () => {
         </div>
         <div style="display: flex; align-items: center; gap: 15px;">
           ${isAdmin() ? `
-            <div class="lock-btn" onclick="event.stopPropagation(); window.toggleCourseLock('${day}')" title="切换开启/关闭状态">
+            <button class="lock-btn" onclick="event.stopPropagation(); window.toggleCourseLock('${day}', this)" title="切换开启/关闭状态">
               ${isLocked ? '🔒' : '🔓'}
-            </div>
+            </button>
             <div class="btn-edit-course" onclick="event.stopPropagation(); window.navigateToEditor('${day}')">✏️</div>
           ` : ''}
+          ${isLocked && !isAdmin() ? '<div class="student-lock-badge">🔒 暂时关闭</div>' : ''}
           <div style="color: var(--accent-pyro); font-size: 24px;">✦</div>
         </div>
       </div>
@@ -326,6 +329,29 @@ const render = async () => {
 
 // --- Global Methods ---
 let syncTimeout: any = null;
+const pushSync = async () => {
+  const stats = getUserStats();
+  if (!stats.contact) return;
+  const syncData: any = { answers: {}, uploads: {} };
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key) continue;
+    if (key.startsWith('yuwen_progress_')) {
+      syncData.answers[key.replace('yuwen_progress_', '')] = JSON.parse(localStorage.getItem(key)!);
+    }
+    if (key.startsWith('upload_')) {
+      syncData.uploads[key.replace('upload_', '')] = localStorage.getItem(key);
+    }
+  }
+  try {
+    await fetch('/api/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contact: stats.contact, syncData })
+    });
+  } catch (e) { console.error('Cloud Sync failed', e); }
+};
+
 (window as any).triggerSync = () => {
   if (syncTimeout) clearTimeout(syncTimeout);
   syncTimeout = setTimeout(() => { pushSync(); }, 2000);
@@ -350,16 +376,41 @@ let syncTimeout: any = null;
   if (inner) inner.classList.toggle('flipped');
 };
 (window as any).navigateToDetail = (day: string) => {
-  if (isCourseLocked(day) && !isAdmin()) {
+  if (serverLockedDays.includes(day) && !isAdmin()) {
     alert('该课程当前处于关闭状态，请联系老师开启。');
     return;
   }
   currentView = 'detail'; currentDay = day; activeTab = 'topic'; dayContent = {}; render();
 };
-(window as any).toggleCourseLock = (day: string) => {
-  const current = isCourseLocked(day);
-  setCourseLock(day, !current);
-  render();
+(window as any).toggleCourseLock = async (day: string, btnEl?: HTMLElement) => {
+  console.log('Toggle Lock Triggered for Day:', day);
+  const isCurrentlyLocked = serverLockedDays.includes(day);
+  const stats = getUserStats();
+  
+  if (btnEl) btnEl.style.opacity = '0.5';
+  
+  try {
+    const res = await fetch('/api/admin/toggle-lock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ day, locked: !isCurrentlyLocked, contact: stats.contact })
+    });
+    
+    if (res.ok) {
+      const data = await res.json();
+      console.log('Server Lock Response:', data);
+      serverLockedDays = data.lockedDays;
+      render();
+    } else {
+      const error = await res.json();
+      alert('操作失败: ' + (error.message || '服务器拒绝'));
+    }
+  } catch (err) {
+    console.error('Lock Toggle Error:', err);
+    alert('同步锁定状态失败，请检查网络');
+  } finally {
+    if (btnEl) btnEl.style.opacity = '1';
+  }
 };
 (window as any).navigateToHome = () => {
   currentView = 'home'; currentDay = null; dayContent = {}; render();
