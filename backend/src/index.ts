@@ -366,6 +366,14 @@ app.post('/api/admin/generate-codes', (req, res) => {
   res.json({ success: true, batchId, count: finalCount });
 });
 
+app.get('/api/admin/list-codes', (req, res) => {
+  const { key, batchId } = req.query;
+  if (key !== process.env.ADMIN_KEY) return res.status(401).json({ error: 'Unauthorized' });
+  if (!batchId) return res.status(400).json({ error: 'Missing batchId' });
+  const codes = db.prepare('SELECT code, duration_days, status, used_by, used_at FROM activation_codes WHERE batch_id = ?').all(batchId);
+  res.json(codes);
+});
+
 app.get('/api/admin/export-progress', (req, res) => {
   const { key } = req.query;
   if (key !== process.env.ADMIN_KEY) return res.status(401).json({ error: 'Unauthorized' });

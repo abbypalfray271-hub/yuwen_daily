@@ -19,7 +19,7 @@ services:
     container_name: daily-practice-backend
     environment:
       - PORT=3005
-      - ADMIN_KEY=antigravity_admin_2026
+      - ADMIN_KEY=2721
     ports:
       - "3011:3005"
     volumes:

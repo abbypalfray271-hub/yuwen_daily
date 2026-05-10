@@ -28,7 +28,9 @@
             <div style="display: flex; gap: 10px;">
                 <input type="number" id="gen-count" value="10">
                 <select id="gen-duration">
+                    <option value="7">7天</option>
                     <option value="30">30天</option>
+                    <option value="120">120天</option>
                     <option value="365">365天</option>
                 </select>
             </div>
@@ -37,7 +39,7 @@
         <div id="result-area" style="display:none;"></div>
     </div>
     <script>
-        const API_BASE = '/api';
+        const API_BASE = window.location.protocol === 'file:' ? 'http://localhost:3005/api' : '/api';
         async function handleGenerate() {
             const key = document.getElementById('admin-key').value;
             const count = document.getElementById('gen-count').value;

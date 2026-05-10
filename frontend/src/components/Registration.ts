@@ -158,18 +158,20 @@ export function renderRegistration(onComplete: () => void) {
   };
 
   const showLogin = () => {
+    const savedContact = getUserStats().contact || '';
+    const maskedContact = savedContact ? savedContact.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2') : '未知账号';
+
     card.innerHTML = `
-      ${renderHeader('🏮', '归航语文园地', '输入账号与口令唤醒存档')}
-      <div style="margin-bottom: 1.5rem; text-align: left;">
-        <label style="color: var(--text-dim); font-size: 0.8rem; letter-spacing: 1px;">契约账号 (手机号)：</label>
-        <input type="tel" id="login-contact" class="tiyvat-input" placeholder="请输入手机号..." style="margin-top: 8px; width: 100%;">
+      ${renderHeader('🏮', '归航语文园地', '输入口令唤醒存档')}
+      <div style="margin-bottom: 1.5rem; text-align: center; color: var(--text-dim); font-size: 0.9rem;">
+        已绑定契约：${maskedContact}
       </div>
       <div style="margin-bottom: 2.5rem;">
         ${getPinHtml('tiyvat-pin-login', 'center')}
       </div>
       <button id="btn-login" class="btn-primary" style="width: 100%; padding: 15px; border-radius: 4px; border: none; cursor: pointer;">确认契约 (Confirm)</button>
       <div style="margin-top: 1.8rem; text-align: center;">
-        <span id="go-to-reg" style="color: var(--text-dim); font-size: 0.8rem; cursor: pointer; text-decoration: underline;">初抵此地？重新签署</span>
+        <span id="go-to-reg" style="color: var(--text-dim); font-size: 0.8rem; cursor: pointer; text-decoration: underline;">切换账号？重新签署</span>
       </div>
     `;
 
@@ -178,12 +180,12 @@ export function renderRegistration(onComplete: () => void) {
     bindPinEvents(inputs);
 
     card.querySelector('#btn-login')?.addEventListener('click', async () => {
-      const contact = (card.querySelector('#login-contact') as HTMLInputElement).value.trim();
       const pin = Array.from(inputs).map(i => i.value).join('');
-      if (!contact || pin.length < 4) return alert('请完整填写');
-      const data = await syncLogin(contact, pin);
+      if (pin.length < 4) return alert('请输入完整的 4 位口令');
+      
+      const data = await syncLogin(savedContact, pin);
       if (data) { applyCloudData(data.user, data.progress); showCelebration(); }
-      else { alert('账号或口令错误'); }
+      else { alert('口令错误'); }
     });
   };
 
