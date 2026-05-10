@@ -241,7 +241,7 @@ app.post('/api/register', apiLimiter, async (req, res) => {
 
 app.post('/api/login', apiLimiter, checkAccess, async (req, res) => {
   const { contact, pin } = req.body;
-  const user = db.prepare('SELECT * FROM users WHERE contact = ?').get(user) as any; // ERROR in original flash_2? No, user = contact.
+
   const realUser = db.prepare('SELECT * FROM users WHERE contact = ?').get(contact) as any;
   if (!realUser) return res.status(404).json({ error: '用户不存在' });
 
