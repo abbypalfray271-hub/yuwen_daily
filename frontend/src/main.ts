@@ -160,6 +160,31 @@ const renderMarkdown = (md: string, backContent?: string, sectionPrefix: string 
         </div>
       </div>`;
     }
+
+    const isAnswerCard = content.includes('>参考答案<') || content.includes('>参考解析<') || content.includes('id="参考答案"');
+    if (sectionPrefix === 'practice' && isAnswerCard && !isAdmin()) {
+      let hasUpload = false;
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(`upload_${dayId}_practice_`)) {
+          hasUpload = true;
+          break;
+        }
+      }
+      if (!hasUpload) {
+        return `<div class="card-item" data-index="${index}">
+          <div class="card-content-inner">
+            <div class="card-scroll-area" style="display:flex; flex-direction:column; justify-content:center; align-items:center; height:100%; text-align:center;">
+              <div style="font-size: 48px; margin-bottom: 20px; opacity: 0.8;">🔒</div>
+              <h3 style="font-family: var(--font-serif); color: var(--accent-pyro); margin-bottom: 10px;">参考答案已锁定</h3>
+              <p style="font-size: 14px; color: var(--text-dim); line-height: 1.6;">请在前方的题目卡片中点击“📷 拍照上传”按钮<br>提交您的书面作业后即可解锁答案</p>
+              <button class="card-upload-btn" style="margin-top:20px; font-size:16px; padding:10px 20px; position:relative; right:auto; top:auto; background:var(--surface-light); border:1px solid var(--border);" onclick="event.stopPropagation(); window.triggerPhotoUpload('${cardId}')">📷 立即拍照上传</button>
+            </div>
+          </div>
+        </div>`;
+      }
+    }
+
     return `<div class="card-item" data-index="${index}"><div class="card-content-inner"><div class="card-scroll-area">${content}${previewHtml}</div></div></div>`;
   }).join('');
 
